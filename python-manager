@@ -1,0 +1,140 @@
+#!/bin/sh
+
+PROJECTS_DIR="$HOME/Projects/python"
+VENVS_DIR="$HOME/.venvs"
+PROG="python-manager"
+TEMPLATES="$HOME/Templates/python"
+
+usage() {
+    echo "\
+Usage: $PROG <action>\n\n\
+Actions:\n\
+  init	    -- Create new project\n\
+  open      -- Open existing project\n\
+  list      -- List existing projects\n\
+  remove    -- Remove existing project\n\
+"
+}
+
+usage_list() {
+    echo "\
+Usage: $PROG list [-r]\n\n\
+-r      -- Unformatted output\n\
+"
+}
+
+usage_init() {
+    echo "\
+Usage: $PROG init <name>\n\
+"
+}
+
+usage_open() {
+    echo "\
+Usage: $PROG open <name>\n\
+"
+}
+
+usage_remove() {
+    echo "\
+Usage: $PROG remove <name>\n\
+"
+}
+
+list_projects() {
+    echo Projects:
+    for p in $PROJECTS_DIR/*; do
+        echo "  $(basename $p)"
+    done
+}
+
+list_raw() {
+    ls $PROJECTS_DIR
+}
+
+create_project() {
+    name=$1
+    [ -e $PROJECTS_DIR/$name ] && \
+        printf "Project with name %b already exists\n" "\033[33m$name\033[0m" && \
+        exit 1
+
+    printf "Creating %b:\n" "\033[34m$name\033[0m"
+
+    printf "  project structure... "
+    mkdir $PROJECTS_DIR/$name
+    cd $PROJECTS_DIR/$name
+    cp $TEMPLATES/gitignore ./.gitignore
+    touch main.py
+    printf "%b\n" "\033[32mOK\033[0m"
+
+    printf "  git repository... "
+    git init >/dev/null
+    git add -A >/dev/null
+    git commit -m "Init" > /dev/null
+    printf "%b\n" "\033[32mOK\033[0m"
+
+    printf "  virtual env... "
+    cd $VENVS_DIR
+    python -m venv $name > /dev/null
+    printf "%b\n" "\033[32mOK\033[0m"
+
+    open_project $name
+}
+
+open_project() {
+    name=$1
+
+   [ ! -e $PROJECTS_DIR/$name ] && exit 1
+   cd $PROJECTS_DIR/$name
+
+   [ -e $VENVS_DIR/$name ] && \
+       cmd="source $VENVS_DIR/$name/bin/activate"
+
+   st -e env CUSTOM_STARTUP_COMMAND="$cmd" $SHELL &
+}
+
+remove_project() {
+    name=$1
+
+    [ ! -e $PROJECTS_DIR/$name ] && exit 1
+    printf "Are you sure you want to remove %b (y/N): " "\033[33m$name\033[0m"
+    read res
+
+    if [ "$res" = 'y' ] || [ "$res" = 'Y' ]; then
+        rm -fr $PROJECTS_DIR/$name
+
+        [ ! -e $VENVS_DIR/$name ] && exit 0
+        rm -fr $VENVS_DIR/$name
+    fi
+}
+
+# Action is required
+[ $# -eq 0 ] && usage && exit 1
+
+# Get action and remove it from args
+action=$1
+shift
+
+# Parse remaining args with getopts
+case $action in
+    list)
+        [ $# -eq 0 ] && list_projects && exit 0
+        [ $# -eq 1 ] && [ $1 = '-r' ] && list_raw && exit 0
+        usage_list && exit 1
+        ;;
+    init)
+        [ $# -eq 1 ] && create_project $1 && exit 0
+        usage_init && exit 1
+        ;;
+    open)
+        [ $# -eq 1 ] && open_project $1 && exit 0
+        usage_open
+        ;;
+    remove)
+        [ $# -eq 1 ] && remove_project $1 && exit 0
+        usage_remove
+        ;;
+    *)
+        usage
+        ;;
+esac

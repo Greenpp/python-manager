@@ -1,0 +1,39 @@
+#compdef _python-manager python-manager
+
+function _python-manager {
+    local line
+    typeset -A opt_args
+
+    _arguments -C \
+        '1:action:->actions' \
+        '*:: :->args'
+
+    case $state in
+        actions)
+            local actions; actions=(
+                'init:Create new project'
+                'list:List existing projects'
+                'open:Open existing project'
+                'remove:Remove existing project'
+            )
+            _describe -t actions 'action' actions
+            ;;
+        args)
+            case $line[1] in
+                open|remove)
+                    _arguments '1:project:->project'
+                    ;;
+                list)
+                    _arguments '-r[Unformatted output]'
+            esac
+
+            case $state in
+                project)
+                    local projects; projects=(
+                    $(python-manager list -r)
+                    )
+                    _alternative "projects::($projects)"
+                    ;;
+            esac
+    esac
+}
