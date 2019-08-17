@@ -90,7 +90,7 @@ open_project() {
    [ -e $VENVS_DIR/$name ] && \
        cmd="source $VENVS_DIR/$name/bin/activate"
 
-   st -e env CUSTOM_STARTUP_COMMAND="$cmd" $SHELL &
+   nohup st -e env CUSTOM_STARTUP_COMMAND="$cmd" $SHELL >/dev/null 2>&1 &
 }
 
 remove_project() {
